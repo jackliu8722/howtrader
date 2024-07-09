@@ -66,7 +66,7 @@ class EventEngine:
             try:
                 event: Event = queue.get(block=True, timeout=1)
                 self._process(event)
-                print(f"thread={current_thread().name},index={index},event={event.type}")
+                # print(f"thread={current_thread().name},index={index},event={event.type}")
             except Empty:
                 pass
 
