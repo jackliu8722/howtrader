@@ -4,7 +4,7 @@ Event-driven framework of Howtrader framework.
 
 from collections import defaultdict
 from queue import Empty, Queue
-from threading import Thread
+from threading import Thread,current_thread
 from time import sleep
 from typing import Any, Callable, List
 
@@ -37,27 +37,36 @@ class EventEngine:
     which can be used for timing purpose.
     """
 
-    def __init__(self, interval: int = 1) -> None:
+    def __init__(self, interval: int = 1, n: int = 5) -> None:
         """
         Timer event is generated every 1 second by default, if
         interval not specified.
         """
         self._interval: int = interval
-        self._queue: Queue = Queue()
+        self._n: int = n
+
+        self._queues: List[Queue] = []
+        self._threads: List[Thread] = []
+        for i in range(self._n):
+            self._queues.append(Queue())
+            self._threads.append(Thread(target=self._run,args=(i,),name=f"event-worker-{i}"))
         self._active: bool = False
-        self._thread: Thread = Thread(target=self._run)
+        
         self._timer: Thread = Thread(target=self._run_timer)
         self._handlers: defaultdict = defaultdict(list)
         self._general_handlers: List = []
 
-    def _run(self) -> None:
+    def _run(self,index: int) -> None:
         """
         Get event from queue and then process it.
         """
+        index = index % self._n
+        queue = self._queues[index]
         while self._active:
             try:
-                event: Event = self._queue.get(block=True, timeout=1)
+                event: Event = queue.get(block=True, timeout=1)
                 self._process(event)
+                print(f"thread={current_thread().name},index={index},event={event.type}")
             except Empty:
                 pass
 
@@ -89,7 +98,8 @@ class EventEngine:
         Start event engine to process events and generate timer events.
         """
         self._active = True
-        self._thread.start()
+        for i in range(self._n):
+            self._threads[i].start()
         self._timer.start()
 
     def stop(self) -> None:
@@ -98,13 +108,16 @@ class EventEngine:
         """
         self._active = False
         self._timer.join()
-        self._thread.join()
+        for i in range(self._n):
+            self._threads[i].join()
 
     def put(self, event: Event) -> None:
         """
         Put an event object into event queue.
         """
-        self._queue.put(event)
+        index = hash(event.type) % self._n
+        queue = self._queues[index]
+        queue.put(event)
 
     def register(self, type: str, handler: HandlerType) -> None:
         """
