@@ -265,6 +265,7 @@ class BinanceUsdtGateway(BaseGateway):
         super().on_position(position)
 
     def get_position(self, symbol: str):
+        # print(f'self.positions:{self.positions}')
         return self.positions.get(symbol, None)
 
 
@@ -968,7 +969,7 @@ class BinanceUsdtRestApi(RestClient):
 
         interval = INTERVAL_VT2BINANCES.get(req.interval, None)
         if not interval:
-            print(f"unsupport interval: {req.interval}")
+            # print(f"unsupport interval: {req.interval}")
             return None
 
         # end_time: int = int(datetime.timestamp(req.end))
@@ -1295,7 +1296,7 @@ class BinanceUsdtDataWebsocketApi(WebsocketClient):
                 tick.__setattr__("ask_volume_" + str(n + 1), float(volume))
 
         if tick.last_price:
-            tick.localtime = datetime.now()
+            tick.localtime = generate_datetime(float(data['E']))
             self.gateway.on_tick(copy(tick))
 
 
